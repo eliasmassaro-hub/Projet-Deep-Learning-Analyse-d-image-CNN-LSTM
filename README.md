@@ -1,9 +1,9 @@
 # Image Captioning From Scratch
 
-> Générer automatiquement des descriptions en langage naturel à partir d'images — sans aucun poids pré-entraîné.
+> Automatically generate natural language descriptions from images — without any pretrained weights.
 
 <p align="center">
-  <code>Image 224×224</code> → <b>CNN Encoder</b> (6 blocs) → <code>vecteur 512-d</code> → <b>LSTM Decoder</b> (2 couches) → <code>"a dog running in the park"</code>
+  <code>Image 224×224</code> → <b>CNN Encoder</b> (6 blocks) → <code>512-d vector</code> → <b>LSTM Decoder</b> (2 layers) → <code>"a dog running in the park"</code>
 </p>
 
 <p align="center">
@@ -15,24 +15,24 @@
 
 ---
 
-## Sommaire
+## Table of Contents
 
-- [Objectif](#-objectif)
-- [Architecture](#-architecture)
-- [Dataset](#-dataset)
-- [Techniques clés](#-techniques-clés)
-- [Hyperparamètres](#-hyperparamètres)
-- [Résultats](#-résultats)
-- [Lancer le projet](#-lancer-le-projet)
-- [Structure du projet](#-structure-du-projet)
+- [Objective](#objective)
+- [Architecture](#architecture)
+- [Dataset](#dataset)
+- [Key Techniques](#key-techniques)
+- [Hyperparameters](#hyperparameters)
+- [Results](#results)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
 
 ---
 
-## Objectif
+## Objective
 
-Concevoir et entraîner un modèle **encoder-decoder** capable de générer une phrase en anglais décrivant le contenu d'une image.
+Design and train an **encoder-decoder** model capable of generating an English sentence describing the content of an image.
 
-**Contrainte principale** : tout le modèle est construit **from scratch** — aucun transfert learning, aucun poids pré-entraîné (pas de ResNet, pas de features ImageNet). Le CNN et le LSTM sont tous deux entraînés à partir de zéro.
+**Main constraint**: the entire model is built **from scratch** — no transfer learning, no pretrained weights (no ResNet, no ImageNet features). Both the CNN and the LSTM are trained from zero.
 
 ---
 
@@ -40,97 +40,97 @@ Concevoir et entraîner un modèle **encoder-decoder** capable de générer une 
 
 ```
 ┌─────────────┐     ┌───────────────────┐     ┌──────────┐     ┌──────────────────┐     ┌──────────┐
-│   Image     │────▶│   CNN Encoder     │────▶│  Vecteur  │────▶│   LSTM Decoder   │────▶│  Caption  │
-│  224×224×3  │     │  6 blocs VGG-like │     │  512-d    │     │   2 couches      │     │  texte   │
+│   Image     │────▶│   CNN Encoder     │────▶│  Feature  │────▶│   LSTM Decoder   │────▶│ Caption  │
+│  224×224×3  │     │  6 VGG-like blocks│     │  512-d    │     │   2 layers       │     │  text    │
 └─────────────┘     └───────────────────┘     └──────────┘     └──────────────────┘     └──────────┘
 ```
 
 ### CNN Encoder
 
-CNN de style **VGG** avec **6 blocs convolutionnels** et **12 couches Conv2d** :
+A **VGG-style** CNN with **6 convolutional blocks** and **12 Conv2d layers**:
 
-| Bloc | Canaux | Résolution |
-|------|--------|------------|
-| Bloc 1 | 3 → 32 | 224 → 112 |
-| Bloc 2 | 32 → 64 | 112 → 56 |
-| Bloc 3 | 64 → 128 | 56 → 28 |
-| Bloc 4 | 128 → 256 | 28 → 14 |
-| Bloc 5 | 256 → 512 | 14 → 7 |
-| Bloc 6 | 512 → 512 | 7 → 3 |
+| Block | Channels | Resolution |
+|-------|----------|------------|
+| Block 1 | 3 → 32 | 224 → 112 |
+| Block 2 | 32 → 64 | 112 → 56 |
+| Block 3 | 64 → 128 | 56 → 28 |
+| Block 4 | 128 → 256 | 28 → 14 |
+| Block 5 | 256 → 512 | 14 → 7 |
+| Block 6 | 512 → 512 | 7 → 3 |
 
-Chaque bloc : `Conv2d(3×3)` → `BatchNorm` → `ReLU` → `Conv2d(3×3)` → `BatchNorm` → `ReLU` → `MaxPool2d(2×2)`
+Each block: `Conv2d(3×3)` → `BatchNorm` → `ReLU` → `Conv2d(3×3)` → `BatchNorm` → `ReLU` → `MaxPool2d(2×2)`
 
-Suivi de : `AdaptiveAvgPool2d(1,1)` → `Dropout(0.3)` → `Linear(512, 512)` → `BatchNorm1d`
+Followed by: `AdaptiveAvgPool2d(1,1)` → `Dropout(0.3)` → `Linear(512, 512)` → `BatchNorm1d`
 
 ### LSTM Decoder
 
-- **Embedding** : vocab_size → 256 dimensions (padding_idx=0)
-- **LSTM** : 2 couches empilées, hidden_dim=512, dropout=0.35
-- **Projection** : Linear(512 → vocab_size) → logits
-- **Initialisation** : le vecteur de features de l'image initialise h₀ et c₀ via deux projections linéaires
+- **Embedding**: vocab_size → 256 dimensions (padding_idx=0)
+- **LSTM**: 2 stacked layers, hidden_dim=512, dropout=0.35
+- **Projection**: Linear(512 → vocab_size) → logits
+- **Initialization**: the image feature vector initializes h₀ and c₀ via two linear projections
 
 ---
 
 ## Dataset
 
-**MS COCO 2017** — le dataset de référence pour l'image captioning.
+**MS COCO 2017** — the standard benchmark for image captioning.
 
-| | Valeur |
+| | Value |
 |---|---|
-| Images train | ~118 000 |
-| Images val | ~5 000 |
-| Captions utilisées / image | 2 (sur 5 disponibles) |
-| Captions pour évaluation | 5 (toutes les références) |
-| Taille du vocabulaire | ~9 000 mots |
-| Seuil de fréquence min | 5 occurrences |
+| Training images | ~118,000 |
+| Validation images | ~5,000 |
+| Captions used / image | 2 (out of 5 available) |
+| Captions for evaluation | 5 (all references) |
+| Vocabulary size | ~9,000 words |
+| Minimum frequency threshold | 5 occurrences |
 
-Le split validation est séparé 50/50 **par image** (pas par caption) pour créer les sets de validation et de test.
+The validation set is split 50/50 **by image** (not by caption) to create the validation and test sets.
 
 ---
 
-## Techniques clés
+## Key Techniques
 
 ### Pack Padded Sequences
-Le LSTM ignore les tokens `<pad>` grâce à `pack_padded_sequence`, ce qui évite d'apprendre à prédire du padding et améliore la qualité des gradients.
+The LSTM ignores `<pad>` tokens via `pack_padded_sequence`, preventing the model from learning to predict padding and improving gradient quality.
 
 ### Scheduled Teacher Forcing
-Le ratio de teacher forcing décroît linéairement de **1.0 → 0.6** sur 30 epochs. Le modèle apprend progressivement à gérer ses propres erreurs de prédiction, réduisant l'exposure bias.
+The teacher forcing ratio decreases linearly from **1.0 → 0.6** over 30 epochs. The model progressively learns to handle its own prediction errors, reducing exposure bias.
 
 ### Label Smoothing (ε = 0.1)
-Les targets ne sont plus one-hot mais lissées : 0.9 pour le vrai mot, 0.1 réparti sur le reste du vocabulaire. Empêche le modèle d'être trop confiant et améliore la généralisation.
+Targets are no longer one-hot but smoothed: 0.9 for the correct word, 0.1 distributed over the rest of the vocabulary. Prevents overconfidence and improves generalization.
 
 ### Data Augmentation
-Pipeline complet à l'entraînement (essentiel car le CNN est from scratch) :
+Full augmentation pipeline at training time (essential since the CNN is trained from scratch):
 - `Resize(240)` → `RandomCrop(224)` → `RandomHorizontalFlip(0.5)` → `RandomRotation(±10°)` → `ColorJitter(±20%)` → `Normalize`
 
 ### Beam Search
-Inférence avec beam search (k=3 ou k=5) et normalisation du score par la longueur pour éviter de favoriser les captions courtes.
+Inference with beam search (k=3 or k=5) and length-normalized scoring to avoid favoring short captions.
 
-### Évaluation BLEU multi-références
-Score BLEU-4 implémenté from scratch, évalué en prenant le meilleur score parmi les 5 captions de référence de chaque image.
+### Multi-Reference BLEU Evaluation
+BLEU-4 score implemented from scratch, evaluated by taking the best score across all 5 reference captions for each image.
 
 ---
 
-## Hyperparamètres
+## Hyperparameters
 
-| Paramètre | Valeur | Justification |
-|-----------|--------|---------------|
-| `IMG_SIZE` | 224 | Features visuelles plus riches |
-| `BATCH_SIZE` | 32 | Compromis mémoire GPU / stabilité gradients |
-| `LEARNING_RATE` | 3e-4 | "Karpathy constant" — excellent défaut pour Adam |
-| `NUM_LSTM_LAYERS` | 2 | Plus de capacité pour le vocabulaire COCO |
-| `EMBED_DIM` | 256 | Dimension des word embeddings |
-| `HIDDEN_DIM` | 512 | Dimension de l'état caché du LSTM |
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| `IMG_SIZE` | 224 | Richer visual features |
+| `BATCH_SIZE` | 32 | Trade-off between GPU memory and gradient stability |
+| `LEARNING_RATE` | 3e-4 | "Karpathy constant" — excellent default for Adam |
+| `NUM_LSTM_LAYERS` | 2 | More capacity for COCO's vocabulary |
+| `EMBED_DIM` | 256 | Word embedding dimension |
+| `HIDDEN_DIM` | 512 | LSTM hidden state dimension |
 | `DROPOUT` | 0.3 / 0.35 | Encoder / Decoder |
-| `LABEL_SMOOTHING` | 0.1 | Régularisation de la loss |
-| `TF_RATIO` | 1.0 → 0.6 | Teacher forcing décroissant |
-| `GRAD_CLIP` | 5.0 | Anti-explosion gradients LSTM |
-| `NUM_EPOCHS` | 30 | Avec ReduceLROnPlateau (factor=0.5, patience=3) |
+| `LABEL_SMOOTHING` | 0.1 | Loss regularization |
+| `TF_RATIO` | 1.0 → 0.6 | Decreasing teacher forcing |
+| `GRAD_CLIP` | 5.0 | Prevents LSTM gradient explosion |
+| `NUM_EPOCHS` | 30 | With ReduceLROnPlateau (factor=0.5, patience=3) |
 
-### Initialisation des poids
+### Weight Initialization
 
-| Couche | Méthode |
-|--------|---------|
+| Layer | Method |
+|-------|--------|
 | Conv2d | Kaiming Normal (fan_out, ReLU) |
 | BatchNorm | γ=1, β=0 |
 | Embedding | Uniform [-0.1, 0.1] |
@@ -141,16 +141,16 @@ Score BLEU-4 implémenté from scratch, évalué en prenant le meilleur score pa
 
 ---
 
-## Résultats
+## Results
 
-Le modèle est évalué sur 200 images du test set avec beam search (k=3).
+The model is evaluated on 200 test set images using beam search (k=3).
 
-Les métriques BLEU-4 sont calculées en single-reference et multi-reference (max sur les 5 captions de chaque image).
+BLEU-4 metrics are computed in both single-reference and multi-reference mode (max over the 5 captions per image).
 
-Exemples de captions générées :
+Sample generated captions:
 
 ```
-Image: [photo d'un chien dans un parc]
+Image: [photo of a dog in a park]
 Greedy  : "a dog is standing in the grass"
 Beam(3) : "a dog is running through the grass in a park"
 Beam(5) : "a brown dog running through a green field"
@@ -158,73 +158,73 @@ Beam(5) : "a brown dog running through a green field"
 
 ---
 
-## Lancer le projet
+## Getting Started
 
-### Prérequis
+### Prerequisites
 
 - Python 3.8+
 - PyTorch 2.4.1
 - torchvision 0.19.1
-- GPU recommandé (entraîné sur Kaggle T4/P100)
+- GPU recommended (trained on Kaggle T4/P100)
 
-### Sur Kaggle (recommandé)
+### On Kaggle (recommended)
 
-1. Créer un nouveau notebook sur [Kaggle](https://www.kaggle.com/)
-2. Ajouter le dataset **`awsaf49/coco-2017-dataset`** via le bouton "Add Data"
-3. Activer le GPU (Settings → Accelerator → GPU)
-4. Importer le notebook et exécuter toutes les cellules
+1. Create a new notebook on [Kaggle](https://www.kaggle.com/)
+2. Add the dataset **`awsaf49/coco-2017-dataset`** via the "Add Data" button
+3. Enable GPU (Settings → Accelerator → GPU)
+4. Import the notebook and run all cells
 
-### En local
+### Locally
 
 ```bash
-# Cloner le repo
-git clone https://github.com/<votre-username>/image-captioning-from-scratch.git
+# Clone the repo
+git clone https://github.com/<your-username>/image-captioning-from-scratch.git
 cd image-captioning-from-scratch
 
-# Installer les dépendances
+# Install dependencies
 pip install torch==2.4.1 torchvision==0.19.1
 
-# Télécharger MS COCO 2017
-# - Images : https://cocodataset.org/#download
-# - Annotations : captions_train2017.json, captions_val2017.json
+# Download MS COCO 2017
+# - Images: https://cocodataset.org/#download
+# - Annotations: captions_train2017.json, captions_val2017.json
 
-# Modifier les chemins dans la classe Config puis lancer le notebook
+# Update the paths in the Config class, then run the notebook
 ```
 
-### Reprise d'entraînement
+### Resuming Training
 
-Le système de checkpoint sauvegarde automatiquement le meilleur modèle (selon la val_loss). Pour reprendre un entraînement interrompu, il suffit de relancer : le script détecte le checkpoint et reprend là où il s'est arrêté.
+The checkpoint system automatically saves the best model (based on val_loss). To resume an interrupted training session, simply rerun the notebook — the script detects the checkpoint and picks up where it left off.
 
 ---
 
-## Structure du projet
+## Project Structure
 
 ```
 .
-├── notebook.ipynb            # Notebook principal (entraînement + évaluation)
+├── notebook.ipynb            # Main notebook (training + evaluation)
 ├── README.md
 ├── checkpoint_coco/
-│   └── best_model.pth        # Checkpoint du meilleur modèle
-└── assets/                   # Images pour le README (optionnel)
+│   └── best_model.pth        # Best model checkpoint
+└── assets/                   # Images for the README (optional)
 ```
 
 ---
 
-## Résumé des composants
+## Summary
 
-| Composant | Choix | Détail |
-|-----------|-------|--------|
-| **Dataset** | MS COCO 2017 | ~118k images, 2 captions/image pour le train |
-| **Encoder** | CNN 6 blocs (12 conv) | VGG-like, from scratch, BatchNorm + ReLU |
-| **Decoder** | LSTM 2 couches | Pack padded, scheduled teacher forcing |
+| Component | Choice | Details |
+|-----------|--------|---------|
+| **Dataset** | MS COCO 2017 | ~118k images, 2 captions/image for training |
+| **Encoder** | CNN 6 blocks (12 conv) | VGG-like, from scratch, BatchNorm + ReLU |
+| **Decoder** | LSTM 2 layers | Pack padded, scheduled teacher forcing |
 | **Loss** | CrossEntropy | label_smoothing=0.1, ignore_index=0 |
-| **Optimiseur** | Adam | lr=3e-4 + ReduceLROnPlateau |
-| **Inférence** | Beam Search | k=3 et k=5, score normalisé par longueur |
-| **Métrique** | BLEU-4 | Multi-références, implémenté from scratch |
-| **Plateforme** | Kaggle GPU | T4/P100, checkpoint resume |
+| **Optimizer** | Adam | lr=3e-4 + ReduceLROnPlateau |
+| **Inference** | Beam Search | k=3 and k=5, length-normalized scoring |
+| **Metric** | BLEU-4 | Multi-reference, implemented from scratch |
+| **Platform** | Kaggle GPU | T4/P100, checkpoint resume |
 
 ---
 
 <p align="center">
-  <i>Projet 2A — École d'Ingénieur — Deep Learning</i>
+  <i>2nd Year Engineering Project — Deep Learning</i>
 </p>
